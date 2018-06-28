@@ -1,0 +1,201 @@
+diff --git a/Makefile.am b/Makefile.am
+index 3cc2d08..62a44d9 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -1,57 +1,16 @@
+ ACLOCAL_AMFLAGS = -I m4
+ 
+-SUBDIRS=aggregator \
+-anonymizer \
+-debug_sender \
+-device_classifier \
+-email_reporter \
++SUBDIRS=flow_meter \
++traffic_repeater \
+ flowcounter \
+-ipv6stats \
+-json_dump \
+-json_replay \
+-link_traffic \
+ logger \
+ logreplay \
+-merger \
+ mux \
+ demux \
+-natpair \
+-proto_traffic \
+-report2idea \
+-topn \
+-traffic_repeater \
+-unirec2json \
+-endiverter
+-
+-EXTRA_DIST = AUTHORS COPYING ChangeLog INSTALL NEWS README.md nfreader \
+-	debian/README.Debian \
+-	debian/changelog \
+-	debian/compat \
+-	debian/control \
+-	debian/copyright \
+-	debian/nemea-modules-dev.install \
+-	debian/nemea-modules.install \
+-	debian/patches \
+-	debian/rules \
+-	debian/source \
+-	debian/watch
+-
+-if HAVE_LIBNF
+-SUBDIRS += nfreader
+-SUBDIRS += nfwriter
+-endif
+-
+-if HAVE_BISON
+-SUBDIRS += unirecfilter
+-if HAVE_OPENSSL
+-SUBDIRS += scalar-aggregator
+-endif
+-endif
+-
+-if HAVE_LIBPCAP
+-SUBDIRS += flow_meter
+-endif
++detector \
++topn
+ 
++EXTRA_DIST = AUTHORS COPYING ChangeLog INSTALL NEWS README.md
+ 
+ RPMDIR = RPMBUILD
+ 
+diff --git a/configure.ac b/configure.ac
+index fe82493..3728b2a 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -43,11 +43,6 @@ AC_SUBST(BINDIR)
+ bashcompldir=${sysconfdir}/bash_completion.d
+ AC_SUBST(bashcompldir)
+ 
+-deviceclassifierdatadir=${pkgdatadir}/device_classifier
+-AC_DEFINE_DIR(DEVICECLASSIFIERDATADIR, [deviceclassifierdatadir], [Path to SVM data files])
+-AC_SUBST(DEVICECLASSIFIERDATADIR)
+-AC_SUBST(deviceclassifierdatadir)
+-
+ RPM_REQUIRES=
+ RPM_BUILDREQ=
+ 
+@@ -81,9 +76,6 @@ esac], [repobuild=false])
+ 
+ AX_C_BIGENDIAN_CROSS
+ 
+-AX_OPENMP([], [AC_MSG_ERROR([OpenMP was not found. Some modules need it (e.g. merger)])])
+-AC_SUBST(OPENMP_CFLAGS)
+-
+ AX_LIBTRAP_CHECK
+ AX_UNIREC_CHECK
+ AX_NEMEACOMMON_CHECK
+@@ -117,36 +109,6 @@ AC_ARG_WITH([flowcachestats],
+ 	]
+ )
+ 
+-AC_ARG_WITH([nfreader],
+-	AC_HELP_STRING([--without-nfreader], [Skip nfreader module.]),
+-        [if test "$withval" = "no"; then
+-                withnfreader="no"
+-        else
+-                withnfreader="yes"
+-        fi], [withnfreader="yes"])
+-
+-if test x${withnfreader} = xyes; then
+-	# Checks for libraries.
+-	AC_CHECK_HEADER(libnf.h, AC_CHECK_LIB(nf, lnf_open, [libnf=yes],
+-	  [AC_MSG_WARN([libnf not found. The nfreader module will not be compiled.])]
+-	), AC_MSG_WARN([libnf.h not found. The nfreader module will not be compiled.]))
+-fi
+-
+-AM_CONDITIONAL(HAVE_LIBNF, test x${libnf} = xyes && test x${withnfreader} = xyes)
+-if [[ -z "$HAVE_LIBNF_TRUE" ]]; then
+-RPM_REQUIRES+=" libnf"
+-RPM_BUILDREQ+=" libnf-devel"
+-fi
+-
+-AC_CHECK_PROG(BISON, bison, yes, [""])
+-AC_CHECK_PROG(FLEX, flex, yes, [""])
+-
+-AM_CONDITIONAL(HAVE_BISON, test xyes = x${BISON} -a xyes = x${FLEX})
+-if [[ -z "$HAVE_BISON_TRUE" ]]; then
+-RPM_BUILDREQ+=" bison"
+-RPM_BUILDREQ+=" flex"
+-fi
+-
+ AC_CHECK_HEADER(pcap.h,
+         AC_CHECK_LIB(pcap, pcap_open_live, [libpcap=yes], AC_MSG_WARN([libpcap not found. The flow_meter module will not be compiled.])), AC_MSG_WARN([pcap.h not found. The flow_meter module will not be compiled.]))
+ 
+@@ -157,7 +119,7 @@ RPM_BUILDREQ+=" libpcap-devel"
+ fi
+ 
+ # Checks for header files.
+-AC_CHECK_HEADERS([arpa/inet.h locale.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h sys/socket.h sys/time.h syslog.h unistd.h omp.h])
++AC_CHECK_HEADERS([arpa/inet.h locale.h netdb.h netinet/in.h stddef.h stdint.h stdlib.h string.h sys/socket.h sys/time.h syslog.h unistd.h])
+ 
+ # Checks for typedefs, structures, and compiler characteristics.
+ AC_HEADER_STDBOOL
+@@ -200,59 +162,17 @@ AM_CONDITIONAL(MAKE_DEB, test x$DEBUILD != x)
+ 
+ # list of all *.in (and Makefile.am) files to process by configure script
+ AC_CONFIG_FILES([Makefile
+-                 aggregator/Makefile
+-                 anonymizer/Makefile
+-                 debug_sender/Makefile
+-                 device_classifier/Makefile
+-                 device_classifier/libsvm/tools/train.sh
+-                 device_classifier/libsvm/tools/binary.py
+-                 device_classifier/libsvm/tools/grid.py
+-                 device_classifier/libsvm/Makefile
+-                 device_classifier/libsvm/data/Makefile
+-                 device_classifier/libsvm/tools/Makefile
+-                 email_reporter/Makefile
+                  flowcounter/Makefile
+                  flow_meter/Makefile
+-                 flow_meter/flow_meter.bash
+                  flow_meter/tests/Makefile
+-                 ipv6stats/Makefile
+-                 json_dump/Makefile
+-                 json_replay/Makefile
+-                 link_traffic/Makefile
+-                 link_traffic/munin/Makefile
+-                 link_traffic/link_traff2json.py
++                 flow_meter/flow_meter.bash
+                  logger/Makefile
+                  logreplay/Makefile
+-                 merger/Makefile
+                  mux/Makefile
+                  demux/Makefile
+-                 natpair/Makefile
+-                 nemea-modules.spec
+-                 nfreader/Makefile
+-                 proto_traffic/Makefile
+-                 proto_traffic/munin/Makefile
+-                 report2idea/Makefile
+-                 report2idea/amplificationdetector/Makefile
+-                 report2idea/bruteforce/Makefile
+-                 report2idea/ddos/Makefile
+-                 report2idea/dnstunnel/Makefile
+-                 report2idea/haddrscan/Makefile
+-                 report2idea/hoststats/Makefile
+-                 report2idea/ipblacklist/Makefile
+-                 report2idea/minerdetector/Makefile
+-                 report2idea/sipbruteforce/Makefile
+-                 report2idea/venom/Makefile
+-                 report2idea/voipfraud/Makefile
+-                 report2idea/vportscan/Makefile
+-                 scalar-aggregator/Makefile
++		 detector/Makefile
+                  topn/Makefile
+                  traffic_repeater/Makefile
+-                 unirec2json/Makefile
+-                 unirecfilter/lib/Makefile
+-                 unirecfilter/lib/liburfilter.pc
+-                 unirecfilter/Makefile
+-                 endiverter/Makefile
+-                 nfwriter/Makefile
+                ])
+ 
+ AC_SUBST(RPM_REQUIRES)
